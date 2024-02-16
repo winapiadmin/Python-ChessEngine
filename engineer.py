@@ -397,7 +397,15 @@ def best_move(board, depth):
 
     selectionSort(mate, best_moves, len(mate) - 1)
     return best_moves[0]
+def extract_fen(input_string):
+    components = input_string.split()
 
+    if len(components) >= 3 and components[0] == "position" and components[1] == "fen":
+        # Join the FEN components starting from index 2
+        fen_position = " ".join(components[2:components.index("moves")])
+        return fen_position
+    else:
+        raise ValueError("Invalid FEN position")
 transposition = []
 board = chess.Board()
 try:
@@ -426,7 +434,7 @@ while userinput != "quit":
             for move in moves:
                 board.push_uci(move)
         if "fen" in tokens:
-            fen = tokens[tokens.index("fen")+1]
+            fen = extract_fen(userinput)
             if "moves" in tokens:
                 moves = [tokens[x + 1] for x in range(tokens.index("fen") + 1 + 2, len(userinput.split(" "))-1)]
                 for move in moves:
@@ -441,9 +449,10 @@ while userinput != "quit":
     elif userinput == "isready": print("readyok")
     elif userinput == "stop": pass
     elif userinput == "d":
+        print("  a   b   c   d   e   f   g   h")
         print("+---+---+---+---+---+---+---+---+")
-        for row in range(8):
-            for col in range(8):
+        for row in range(8, 0, -1):
+            for col in range(8, 0, -1):
                 if board.piece_at(chess.square(col, row))!=None:
                     print("| %s" % (board.piece_at(chess.square(col, row))), end = ' ')
                 else:
