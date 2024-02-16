@@ -435,8 +435,10 @@ while userinput != "quit":
                 board.push_uci(move)
         if "fen" in tokens:
             fen = extract_fen(userinput)
+            board.set_fen(fen)
             if "moves" in tokens:
-                moves = [tokens[x + 1] for x in range(tokens.index("fen") + 1 + 2, len(userinput.split(" "))-1)]
+                moveindex = tokens.index("moves")+1
+                moves = tokens[moveindex:len(tokens)-1]
                 for move in moves:
                     board.push_uci(move)
     elif userinput == "uci":
@@ -446,13 +448,13 @@ while userinput != "quit":
     elif "setoption" in userinput: pass
     elif userinput == "ucinewgame":
         transposition = []
-    elif userinput == "isready": print("readyok")
+    elif userinput == "isready": pdrint("readyok")
     elif userinput == "stop": pass
     elif userinput == "d":
         print("  a   b   c   d   e   f   g   h")
         print("+---+---+---+---+---+---+---+---+")
-        for row in range(8, 0, -1):
-            for col in range(8, 0, -1):
+        for row in range(7, -1, -1):
+            for col in range(8):
                 if board.piece_at(chess.square(col, row))!=None:
                     print("| %s" % (board.piece_at(chess.square(col, row))), end = ' ')
                 else:
