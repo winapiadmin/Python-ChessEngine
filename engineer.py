@@ -356,7 +356,7 @@ def alpha_beta(board, depth, alpha, beta, maximizing_player):
         board.push(move)
         score = -alpha_beta(board, depth - 1, -beta, -alpha, not maximizing_player)
         board.pop()
-        print("info move %s score cp %i" % (move, score))
+        print("info depth %i move %s score cp %i" % (depth, move, score))
         if score >= beta:
             return beta  # Prune
         alpha = max(alpha, score)
