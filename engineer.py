@@ -413,7 +413,6 @@ def best_move_inf(board, depth):
 
     # Rearrange list 'b' based on the sorted order of 'a'
     new_b = [moves[move_score.index(elem)] for elem in new_a]
-    print(new_b)
     return new_b[0]
 def extract_fen(input_string):
     components = input_string.split()
