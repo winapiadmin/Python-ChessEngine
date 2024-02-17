@@ -335,14 +335,16 @@ def sort_moves(board):
     moves = []
     # Sort moves by capturing pieces first, then by quiet moves
     for move in board.legal_moves:
-        if board.piece_at(move.fromSquare).piece_type > move.drop and board.is_capture(move):
-            moves.append(move)
+        if move.drop != None:
+            if board.piece_at(move.from_square).piece_type > move.drop and board.is_capture(move):
+                moves.append(move)
         if move.promotion:
             moves.append(move)
-        
+        moves.append(move)
+    return moves
 def alpha_beta(board, depth, alpha, beta, maximizing_player):
     if depth == 0:
-        return int(scale_to_white_view(evaluate(board)))  # Placeholder evaluation function
+        return int(scale_to_white_view(board, evaluate(board)))  # Placeholder evaluation function
 
     # Check transposition table for cached results
     cached_score = transposition.get(board.fen())
@@ -352,7 +354,7 @@ def alpha_beta(board, depth, alpha, beta, maximizing_player):
     legal_moves = sort_moves(board)
     for move in legal_moves:
         board.push(move)
-        score = -alpha_beta(board, depth - 1, -beta, -alpha, not maximizing_player, transposition)
+        score = -alpha_beta(board, depth - 1, -beta, -alpha, not maximizing_player)
         board.pop()
         print("info move %s score cp %i" % (move, score))
         if score >= beta:
@@ -367,7 +369,7 @@ def iterative_deepening(board, max_depth, max_time):
     depth = 1
     best_move = None
     while time.time() - start_time < max_time and depth <= max_depth:
-        best_move = alpha_beta(board, depth, -mateValue - 1, mateValue + 1, maximizing_player=True, transposition_table={})
+        best_move = alpha_beta(board, depth, -mateValue - 1, mateValue + 1, maximizing_player=True)
         depth += 1
 
     return best_move
@@ -398,7 +400,7 @@ def best_move_inf(board, depth):
     moves = []
     for move in board.legal_moves:
         board.push(move)
-        score = iterative_deepening(board, depth, -1)
+        score = iterative_deepening(board, depth, 60000000)
         board.pop()
         move_score.append(score)
         moves.append(move)
