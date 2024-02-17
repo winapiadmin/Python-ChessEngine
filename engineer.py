@@ -1,4 +1,6 @@
+from collections import Counter
 from chess import *
+import time
 print("Python-ChessEngine")
 print("Idealed by stackoverflow")
 import chess
@@ -328,61 +330,91 @@ def king_safety(board: chess.Board, color: chess.Color, endgame_weight) :
 
     
     return score
-
-def minimax(board, depth, void, alpha, beta, allmove: str = "", nodes: int = 1):
+def sort_moves(board):
+    SCORE_VALUE = {"p": 1, "P": 1, "N": 3, "B" : 3, "n": 3, "b": 3, "r": 5, "R": 5, "Q": 9, "q": 9}
+    moves = []
+    # Sort moves by capturing pieces first, then by quiet moves
+    for move in board.legal_moves:
+        if board.piece_at(move.fromSquare).piece_type > move.drop and board.is_capture(move):
+            moves.append(move)
+        if move.promotion:
+            moves.append(move)
+        
+def alpha_beta(board, depth, alpha, beta, maximizing_player):
     if depth == 0:
-        return [int(scale_to_white_view(board, evaluate(board))), nodes]
-    if board.is_checkmate(): 
-        return [int(scale_to_white_view(board, 100_000_000_000.0)), nodes]
-    legal_moves = list(board.generate_legal_moves())
-    eval_score = None
-    max_eval = 100_000_000_000
+        return int(scale_to_white_view(evaluate(board)))  # Placeholder evaluation function
 
+    # Check transposition table for cached results
+    cached_score = transposition.get(board.fen())
+    if cached_score is not None:
+        return cached_score
+
+    legal_moves = sort_moves(board)
     for move in legal_moves:
-        san = str(move)
-        fen = board.fen()
         board.push(move)
-
-        # Search for the element in the array
-        for item in transposition:
-            if item["FEN"] == fen:
-                eval_score = [item["score"], nodes + 1]
-                break
-
-        if eval_score is None:
-            eval_score = minimax(board, depth - 1, void, -alpha, -beta, allmove + " " + san, nodes + 1)
-            eval_score = [-eval_score[0], eval_score[1]]
-            transposition.append({"FEN": board.fen(), "score": eval_score[0], "nodes": eval_score[1]})
-        print("info depth %i move %s score cp %s" % (depth, allmove + " " + san, eval_score[0]))
-        max_eval = max(max_eval, eval_score[0])
-        alpha = max(alpha, eval_score[0])
+        score = -alpha_beta(board, depth - 1, -beta, -alpha, not maximizing_player, transposition)
         board.pop()
 
-        if beta <= alpha:
-            break
+        if score >= beta:
+            return beta  # Prune
+        alpha = max(alpha, score)
 
-        nodes += 1
-        eval_score = None
-
-    return [max_eval, nodes]
-
-def best_move(board, depth):
-    legal_moves = list(board.legal_moves)
+    # Store the evaluated position in the transposition table
+    transposition[board.fen()] = alpha
+    return alpha
+def iterative_deepening(board, max_depth, max_time):
+    start_time = time.time()
+    depth = 1
     best_move = None
-    best_eval = 100_000_000_000
-    best_moves = []
-    mate = []
-    if board.fen() == chess.STARTING_FEN: legal_moves = [chess.Move.from_uci("e2e4"), chess.Move.from_uci("d2d4"), chess.Move.from_uci("g1f3"), chess.Move.from_uci("b1c3")]
-    for move in legal_moves:
-        san = str(move)
-        board.push(move)
-        eval_score = minimax(board, depth, False, -100_000_000_000, 100_000_000_000, san, 1)
-        board.pop()
+    while time.time() - start_time < max_time and depth <= max_depth:
+        best_move = alpha_beta(board, depth, -mateValue - 1, mateValue + 1, maximizing_player=True, transposition_table={})
+        depth += 1
 
-        if eval_score[0] >= best_eval:
-            best_eval = -eval_score[0]
-            best_move = move
-    return str(best_move)
+    return best_move
+def best_move(board, depth, movetime):
+    move_score = []
+    moves = []
+    for move in board.legal_moves:
+        board.push(move)
+        score = iterative_deepening(board, depth, movetime)
+        board.pop()
+        move_score.append(score)
+        moves.append(move)
+    # Create a frequency dictionary for list 'a'
+    frequency_dict = Counter(move_score)
+
+    # Sort unique elements from 'a' by frequency (in descending order)
+    sorted_elements = sorted(frequency_dict.keys(), key=lambda x: frequency_dict[x], reverse=True)
+
+    # Create the new list 'a' with sorted elements
+    new_a = [elem for elem in sorted_elements for _ in range(frequency_dict[elem])]
+
+    # Rearrange list 'b' based on the sorted order of 'a'
+    new_b = [moves[move_score.index(elem)] for elem in new_a]
+    return new_b[0]
+
+def best_move_inf(board, depth):
+    move_score = []
+    moves = []
+    for move in board.legal_moves:
+        board.push(move)
+        score = iterative_deepening(board, depth, -1)
+        board.pop()
+        move_score.append(score)
+        moves.append(move)
+    # Create a frequency dictionary for list 'a'
+    frequency_dict = Counter(move_score)
+
+    # Sort unique elements from 'a' by frequency (in descending order)
+    sorted_elements = sorted(frequency_dict.keys(), key=lambda x: frequency_dict[x], reverse=True)
+
+    # Create the new list 'a' with sorted elements
+    new_a = [elem for elem in sorted_elements for _ in range(frequency_dict[elem])]
+
+    # Rearrange list 'b' based on the sorted order of 'a'
+    new_b = [moves[move_score.index(elem)] for elem in new_a]
+    print(new_b)
+    return new_b[0]
 def extract_fen(input_string):
     components = input_string.split()
 
@@ -395,25 +427,48 @@ def extract_fen(input_string):
         return fen_position
     else:
         raise ValueError("Invalid FEN position")
-transposition = []
+def extract_values(input_string):
+    parts = input_string.split()
+    y, z = None, None
+
+    for i in range(len(parts) - 1):
+        if parts[i] == "movetime":
+            y = int(parts[i + 1])
+        elif parts[i] == "wtime":
+            y = int(parts[i + 1])
+        elif parts[i] == "btime":
+            z = int(parts[i + 1])
+
+    return y, z
+transposition = {}
 board = chess.Board()
 try:
     with open("transposition.txt", "r") as file:
         x = file.readline()
-        while x!='':
-            transposition.append(eval(x.strip()))
-            x = file.readline()
+        transposition = eval(x)
 except:
     open("transposition.txt", "w").close()
 userinput = input()
 while userinput != "quit":
     tokens = [userinput.split(" ")[x + 1] for x in range(len(userinput.split(" "))-1)]
     if userinput.strip()=="go":
-        bestMove = best_move(board.copy(), 249)
+        bestMove = best_move_inf(board.copy(), 249)
         print("bestmove %s" % (bestMove))
     elif "go" in userinput:
         if "depth" in userinput:
-            bestMove = best_move(board.copy(), int(tokens[tokens.index("depth") + 1]))
+            y, z = extract_values(userinput)
+            bestMove = None
+            if (y, z)==(None, None):
+                bestmove = best_move_inf(board.copy(), int(tokens[tokens.index("depth") + 1]))
+            if y!=None and z!=None:
+                if board.turn == True:
+                    bestMove = best_move(board.copy(), int(tokens[tokens.index("depth") + 1]), int(y)/1000)
+                else:
+                    bestMove = best_move(board.copy(), int(tokens[tokens.index("depth") + 1]), int(z)/1000)
+            if (y, z) == (y, None) and y!=None:
+                bestMove = best_move(board.copy(), int(tokens[tokens.index("depth") + 1]), int(y)/1000)
+            if (y, z)==(None, z) and z !=None:
+                pass
             print("bestmove %s" % (bestMove))
     elif "position" in userinput:
         if tokens[0] == "startpos":
@@ -461,5 +516,4 @@ while userinput != "quit":
         print("Command `%s` not implemented" % (userinput))
     userinput = input()
 with open("transposition.txt", "a") as file:
-    for x in transposition:
-        file.write(str(x) + "\n")
+    file.write(str(x) + "\n")
