@@ -1,3 +1,4 @@
+from chess import *
 print("Python-ChessEngine")
 print("Idealed by stackoverflow")
 import chess
@@ -328,11 +329,11 @@ def king_safety(board: chess.Board, color: chess.Color, endgame_weight) :
     
     return score
 
-def minimax(board, depth, void, alpha, beta, allmove: str = "", nodes: int = 1, capturedepth=5):
+def minimax(board, depth, void, alpha, beta, allmove: str = "", nodes: int = 1):
     if depth == 0:
-        print("info depth %i move (none) score cp %s" % (depth, int(scale_to_white_view(board, evaluate(board)))))
         return [int(scale_to_white_view(board, evaluate(board))), nodes]
-
+    if board.is_checkmate(): 
+        return [int(scale_to_white_view(board, 100_000_000_000.0)), nodes]
     legal_moves = list(board.generate_legal_moves())
     eval_score = None
     max_eval = 100_000_000_000
@@ -349,7 +350,8 @@ def minimax(board, depth, void, alpha, beta, allmove: str = "", nodes: int = 1, 
                 break
 
         if eval_score is None:
-            eval_score = minimax(board, depth - 1, void, alpha, beta, allmove + " " + san, nodes + 1, capturedepth)
+            eval_score = minimax(board, depth - 1, void, -alpha, -beta, allmove + " " + san, nodes + 1)
+            eval_score = [-eval_score[0], eval_score[1]]
             transposition.append({"FEN": board.fen(), "score": eval_score[0], "nodes": eval_score[1]})
         print("info depth %i move %s score cp %s" % (depth, allmove + " " + san, eval_score[0]))
         max_eval = max(max_eval, eval_score[0])
@@ -364,18 +366,6 @@ def minimax(board, depth, void, alpha, beta, allmove: str = "", nodes: int = 1, 
 
     return [max_eval, nodes]
 
-def selectionSort(array, array2, size):
-    
-    for ind in range(size):
-        min_index = ind
- 
-        for j in range(ind + 1, size):
-            # select the minimum element in every iteration
-            if array[j] < array[min_index]:
-                min_index = j
-         # swapping the elements to sort the array
-        (array[ind], array[min_index]) = (array[min_index], array[ind])
-        (array2[ind], array2[min_index]) = (array2[min_index], array2[ind])
 def best_move(board, depth):
     legal_moves = list(board.legal_moves)
     best_move = None
@@ -386,23 +376,22 @@ def best_move(board, depth):
     for move in legal_moves:
         san = str(move)
         board.push(move)
-        eval_score = minimax(board, depth, False, 100_000_000_000, 100_000_000_000, san, 1, depth)
+        eval_score = minimax(board, depth, False, -100_000_000_000, 100_000_000_000, san, 1)
         board.pop()
 
         if eval_score[0] >= best_eval:
-            best_eval = eval_score[0]
+            best_eval = -eval_score[0]
             best_move = move
-            mate.append(eval_score[1])
-            best_moves.append(move)
-
-    selectionSort(mate, best_moves, len(mate) - 1)
-    return best_moves[0]
+    return str(best_move)
 def extract_fen(input_string):
     components = input_string.split()
 
     if len(components) >= 3 and components[0] == "position" and components[1] == "fen":
         # Join the FEN components starting from index 2
-        fen_position = " ".join(components[2:components.index("moves")])
+        try:
+            fen_position = " ".join(components[2:components.index("moves")])
+        except:
+            fen_position = " ".join(components[2:len(components):])
         return fen_position
     else:
         raise ValueError("Invalid FEN position")
@@ -420,11 +409,11 @@ userinput = input()
 while userinput != "quit":
     tokens = [userinput.split(" ")[x + 1] for x in range(len(userinput.split(" "))-1)]
     if userinput.strip()=="go":
-        bestMove = best_move(board, 249)
+        bestMove = best_move(board.copy(), 249)
         print("bestmove %s" % (bestMove))
     elif "go" in userinput:
         if "depth" in userinput:
-            bestMove = best_move(board, int(tokens[tokens.index("depth") + 1]))
+            bestMove = best_move(board.copy(), int(tokens[tokens.index("depth") + 1]))
             print("bestmove %s" % (bestMove))
     elif "position" in userinput:
         if tokens[0] == "startpos":
@@ -436,6 +425,7 @@ while userinput != "quit":
         if "fen" in tokens:
             fen = extract_fen(userinput)
             board.set_fen(fen)
+            assert board.status != chess.STATUS_VALID
             if "moves" in tokens:
                 moveindex = tokens.index("moves")+1
                 moves = tokens[moveindex:len(tokens)-1]
@@ -448,7 +438,7 @@ while userinput != "quit":
     elif "setoption" in userinput: pass
     elif userinput == "ucinewgame":
         transposition = []
-    elif userinput == "isready": pdrint("readyok")
+    elif userinput == "isready": print("readyok")
     elif userinput == "stop": pass
     elif userinput == "d":
         print("  a   b   c   d   e   f   g   h")
@@ -459,7 +449,7 @@ while userinput != "quit":
                     print("| %s" % (board.piece_at(chess.square(col, row))), end = ' ')
                 else:
                     print("|  ", end = ' ')
-            print("|", row)
+            print("|", row + 1)
             print("+---+---+---+---+---+---+---+---+")
         print()
         print("Fen:", board.fen())
