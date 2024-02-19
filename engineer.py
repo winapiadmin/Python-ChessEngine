@@ -342,34 +342,34 @@ def sort_moves(board):
             moves.append(move)
         moves.append(move)
     return moves
-def alpha_beta(board, depth, alpha, beta, maximizing_player):
+def alpha_beta(board, depth, alpha, beta, pv:str = ""):
     if depth == 0:
         return int(scale_to_white_view(board, evaluate(board)))  # Placeholder evaluation function
 
     # Check transposition table for cached results
-    cached_score = transposition.get(board.fen())
+    cached_score = transposition.get(board.board_fen() + " " +  board.fen().split(" ")[1])
     if cached_score is not None:
         return cached_score
 
     legal_moves = sort_moves(board)
     for move in legal_moves:
         board.push(move)
-        score = -alpha_beta(board, depth - 1, -beta, -alpha, not maximizing_player)
+        score = -alpha_beta(board, depth - 1, -beta, -alpha, pv + " " + str(move))
         board.pop()
-        print("info depth %i move %s score cp %i" % (depth, move, score))
+        print("info depth %i pv%s score cp %i" % (depth, pv + " " + str(move), score))
         if score >= beta:
             return beta  # Prune
         alpha = max(alpha, score)
-
+        transposition[board.board_fen() + " " +  board.fen().split(" ")[1]] = alpha
     # Store the evaluated position in the transposition table
-    transposition[board.fen()] = alpha
+    transposition[board.board_fen() + " " + board.fen().split(" ")[1]] = alpha
     return alpha
 def iterative_deepening(board, max_depth, max_time):
     start_time = time.time()
     depth = 1
     best_move = None
     while time.time() - start_time < max_time and depth <= max_depth:
-        best_move = alpha_beta(board, depth, -mateValue - 1, mateValue + 1, maximizing_player=True)
+        best_move = alpha_beta(board, depth, -mateValue - 1, mateValue + 1)
         depth += 1
 
     return best_move
@@ -393,29 +393,10 @@ def best_move(board, depth, movetime):
 
     # Rearrange list 'b' based on the sorted order of 'a'
     new_b = [moves[move_score.index(elem)] for elem in new_a]
-    return new_b[0]
-
+    print("bestmove %s" % (new_b[0]))
+    return None
 def best_move_inf(board, depth):
-    move_score = []
-    moves = []
-    for move in board.legal_moves:
-        board.push(move)
-        score = iterative_deepening(board, depth, 60000000)
-        board.pop()
-        move_score.append(score)
-        moves.append(move)
-    # Create a frequency dictionary for list 'a'
-    frequency_dict = Counter(move_score)
-
-    # Sort unique elements from 'a' by frequency (in descending order)
-    sorted_elements = sorted(frequency_dict.keys(), key=lambda x: frequency_dict[x], reverse=True)
-
-    # Create the new list 'a' with sorted elements
-    new_a = [elem for elem in sorted_elements for _ in range(frequency_dict[elem])]
-
-    # Rearrange list 'b' based on the sorted order of 'a'
-    new_b = [moves[move_score.index(elem)] for elem in new_a]
-    return new_b[0]
+    return best_move(board, depth, 600)
 def extract_fen(input_string):
     components = input_string.split()
 
@@ -454,7 +435,6 @@ while userinput != "quit":
     tokens = [userinput.split(" ")[x + 1] for x in range(len(userinput.split(" "))-1)]
     if userinput.strip()=="go":
         bestMove = best_move_inf(board.copy(), 249)
-        print("bestmove %s" % (bestMove))
     elif "go" in userinput:
         if "depth" in userinput:
             y, z = extract_values(userinput)
@@ -470,7 +450,6 @@ while userinput != "quit":
                 bestMove = best_move(board.copy(), int(tokens[tokens.index("depth") + 1]), int(y)/1000)
             if (y, z)==(None, z) and z !=None:
                 pass
-            print("bestmove %s" % (bestMove))
     elif "position" in userinput:
         if tokens[0] == "startpos":
             board.set_fen(chess.STARTING_FEN)
@@ -517,4 +496,4 @@ while userinput != "quit":
         print("Command `%s` not implemented" % (userinput))
     userinput = input()
 with open("transposition.txt", "a") as file:
-    file.write(str(x) + "\n")
+    file.write(str(transposition) + "\n")
