@@ -390,7 +390,24 @@ def best_move(board, depth, movetime)->None:
             moves2.append(move)
             doct[weight] = move
         weights.sort()
-        print("bestmove %s" % (doct[weights[-1]]))
+        bestmove = doct[weights[-1]]
+        board.push(chess.Move.from_uci(doct[weights[-1]]))
+        moves = []
+        weights = []
+        moves2 = []
+        doct = {}
+        with open_reader("polyglot_engine.bin") as reader:
+            for entry in reader.find_all(board):
+                moves.append("%s %s" % (entry.move, entry.weight))
+        for x in moves:
+            weight = int(x.split(" ")[1])
+            move = x.split(" ")[0]
+            weights.append(weight)
+            moves2.append(move)
+            doct[weight] = move
+        weights.sort()
+        print("bestmove %s response %s" % (bestmove, doct[weights[-1]]))
+        board.pop()
     except:
         move_score = []
         moves = []
@@ -428,7 +445,24 @@ def best_move_inf(board, depth)->None:
             moves2.append(move)
             doct[weight] = move
         weights.sort()
-        print("bestmove %s" % (doct[weights[-1]]))
+        bestmove = doct[weights[-1]]
+        board.push(chess.Move.from_uci(doct[weights[-1]]))
+        moves = []
+        weights = []
+        moves2 = []
+        doct = {}
+        with open_reader("polyglot_engine.bin") as reader:
+            for entry in reader.find_all(board):
+                moves.append("%s %s" % (entry.move, entry.weight))
+        for x in moves:
+            weight = int(x.split(" ")[1])
+            move = x.split(" ")[0]
+            weights.append(weight)
+            moves2.append(move)
+            doct[weight] = move
+        weights.sort()
+        print("bestmove %s response %s" % (bestmove, doct[weights[-1]]))
+        board.pop()
     except:
         move_score = []
         moves = []
